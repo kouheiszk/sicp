@@ -35,6 +35,9 @@
       6))
 
 ;; 値はdefineで変数に入れられる
+;; 代入ではなく、定義だそう
+;; この違いは、後々の章でやるそうです
+;; Haskellとか、再代入できないど、再定義はできるとかうんたらかんたら...
 
 (define size 2)
 size ;; 2が出力される
@@ -76,6 +79,8 @@ circumference
 
 ;; 解釈系はどう評価するか
 ;; 手続きの仮パラメータを引数に置き換えていく
+;; 下は正規順序の例で、作用的順序は、引数を作用させてから仮パラメタに値を入れる
+;; 間違った説明をしてしまってすいません><
 
 (f 5)
 
@@ -190,22 +195,38 @@ circumference
 (define (square x) (* x x))
 (define (sum-of-max-squares x y z)
   (+ (square (cond
-               ((> x y) x)
+               ((>= x y) x)
                (else y))) 
      (square (cond
-               ((and (> x y) (> y z)) y)
-               ((and (> x y) (< y z)) z)
-               ((and (< x y) (> x z)) x)
+               ((and (>= x y) (>= y z)) y)
+               ((and (>= x y) (< y z)) z)
+               ((and (< x y) (>= x z)) x)
                ((and (< x y) (< x z)) z)))
      ))
 
-(sum-of-max-squares 3 4 5)
+(sum-of-max-squares 3 4 5) ;; 41
 (sum-of-max-squares 3 5 4)
 (sum-of-max-squares 4 3 5)
 (sum-of-max-squares 4 5 3)
 (sum-of-max-squares 5 3 4)
 (sum-of-max-squares 5 4 3)
+(sum-of-max-squares 3 3 3) ;; 18
+(sum-of-max-squares 5 3 3) ;; 34
+(sum-of-max-squares 3 5 3)
+(sum-of-max-squares 3 3 5)
+(sum-of-max-squares 5 5 3) ;; 50
+(sum-of-max-squares 5 3 5)
+(sum-of-max-squares 3 5 5)
 
+;;; #1.3 別解
+
+(define (square x) (* x x))
+(define (sum-of-max-squares x y z)
+  (cond
+    ((and (>= x z) (>= y z)) (+ (square x) (square y)))
+    ((and (>= x y) (>= z y)) (+ (square x) (square z)))
+    ((and (>= y x) (>= z x)) (+ (square y) (square z)))
+  ))
 
 ;;; #1.4
 
@@ -312,26 +333,58 @@ circumference
 ;; 作用的順序において式部分が評価されるため、再帰を抜けられる？
 ;; 何言ってるかよくわからない(´・ω・｀)
 
+;; condは式を評価してしまうからダメという認識に落ち着いた...
+
 
 ;;; #1.7
 
 ;;; long 9,223,372,036,854,775,807
 (sqrt 0.0000000000000000000000000000000000000009)
 (sqrt 90000000000000000000000000000000000000000)
+(sqrt 1e46)
 
 ;; もともとのgood-enough?
 
 (define (good-enough? guess x)
   (< (abs (- (square guess) x)) 0.001))
 
-;; 書き換えたgood-enough?
+;; 書き換えたgood-enough?を用いたもの
+
+;; 平方数
+(define (square x) (* x x))
+
+;; 絶対値
+(define (abs x)
+  (if (> x 0)
+    x
+    (- x)))
+
+(define (sqrt-iter guess prev-guess x)
+  (if (good-enough? guess prev-guess)
+    guess
+    (sqrt-iter (improve guess x)
+               guess
+               x)))
+
+(define (improve guess x)
+  (average guess (/ x guess)))
+
+(define (average x y)
+  (/ (+ x y) 2))
+
+;; (define (good-enough? guess prev-guess)
+;;   (< (abs (- prev-guess guess)) (* guess 0.0001)))
 
 (define (good-enough? guess prev-guess)
-  (< (abs (- prev-guess guess)) (* guess 0.0001)))
+  (< (abs (- prev-guess guess)) (* guess 0.001))) 
 
-(sqrt 9)
-(sqrt 100000000000000000000000000000000000000)
-(sqrt 0.0000000000000000000000000000000000000001)
+(define (sqrt x)
+  (sqrt-iter 1.0 0.0 x))
+
+(sqrt 0.0000000000000000000000000000000000000009)
+(sqrt 90000000000000000000000000000000000000000)
+(sqrt 1e46)
+
 
 
 ;;; #1.8
