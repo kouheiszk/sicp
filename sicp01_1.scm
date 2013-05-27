@@ -422,5 +422,3 @@ circumference
 (curt 27)
 (curt (cube 13))
 (curt 1000)
-
-
