@@ -16,6 +16,20 @@
 
 ;;;SECTION 4.1.1
 
+(define (apply procedure arguments)
+  (cond ((primitive-procedure? procedure)
+         (apply-primitive-procedure procedure arguments))
+        ((compound-procedure? procedure)
+         (eval-sequence
+           (procedure-body procedure)
+           (extend-environment
+             (procedure-parameters procedure)
+             arguments
+             (procedure-environment procedure))))
+        (else
+         (error
+          "Unknown procedure type -- APPLY" procedure))))
+
 (define (eval exp env)
   (cond ((self-evaluating? exp) exp)
         ((variable? exp) (lookup-variable-value exp env))
@@ -35,21 +49,6 @@
                 (list-of-values (operands exp) env)))
         (else
          (error "Unknown expression type -- EVAL" exp))))
-
-(define (apply procedure arguments)
-  (cond ((primitive-procedure? procedure)
-         (apply-primitive-procedure procedure arguments))
-        ((compound-procedure? procedure)
-         (eval-sequence
-           (procedure-body procedure)
-           (extend-environment
-             (procedure-parameters procedure)
-             arguments
-             (procedure-environment procedure))))
-        (else
-         (error
-          "Unknown procedure type -- APPLY" procedure))))
-
 
 (define (list-of-values exps env)
   (if (no-operands? exps)
@@ -305,7 +304,6 @@
         (list 'cdr cdr)
         (list 'cons cons)
         (list 'null? null?)
-        (list 'if if)
         (list '+ +)
         (list '- -)
         (list '* *)
