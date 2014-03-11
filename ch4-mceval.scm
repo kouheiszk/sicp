@@ -44,6 +44,7 @@
         ((begin? exp) 
          (eval-sequence (begin-actions exp) env))
         ((cond? exp) (eval (cond->if exp) env))
+        ((let? exp) (eval (let->combination exp) env)) ; ex4.6
         ((application? exp)
          (apply (eval (operator exp) env)
                 (list-of-values (operands exp) env)))
