@@ -11,32 +11,10 @@
 ;;;;**WARNING: Don't load this file twice (or you'll lose the primitives
 ;;;;  interface, due to renamings of apply).
 
-;; @see https://raw.githubusercontent.com/mokehehe/bulletsml/master/README.txt
-;; @see https://github.com/haruyama/yami/blob/master/src/SICP/4/4.1/4.1.ss
-(define-macro (define-once name . body)
-              `(unless (global-variable-bound? (current-module) ',name)
-                       (define ,name ,@body)))
-
 ;;;from section 4.1.4 -- must precede def of metacircular apply
-;; 1度しか評価しない
-(define-once apply-in-underlying-scheme apply)
+(define apply-in-underlying-scheme apply)
 
 ;;;SECTION 4.1.1
-
-;; evalでapplyを使うため、applyを先に定義する
-(define (apply procedure arguments)
-  (cond ((primitive-procedure? procedure)
-         (apply-primitive-procedure procedure arguments))
-        ((compound-procedure? procedure)
-         (eval-sequence
-           (procedure-body procedure)
-           (extend-environment
-             (procedure-parameters procedure)
-             arguments
-             (procedure-environment procedure))))
-        (else
-          (error
-            "Unknown procedure type -- APPLY" procedure))))
 
 (define (eval exp env)
   (cond ((self-evaluating? exp) exp)
@@ -56,7 +34,22 @@
          (apply (eval (operator exp) env)
                 (list-of-values (operands exp) env)))
         (else
-          (error "Unknown expression type -- EVAL" exp))))
+         (error "Unknown expression type -- EVAL" exp))))
+
+(define (apply procedure arguments)
+  (cond ((primitive-procedure? procedure)
+         (apply-primitive-procedure procedure arguments))
+        ((compound-procedure? procedure)
+         (eval-sequence
+           (procedure-body procedure)
+           (extend-environment
+             (procedure-parameters procedure)
+             arguments
+             (procedure-environment procedure))))
+        (else
+         (error
+          "Unknown procedure type -- APPLY" procedure))))
+
 
 (define (list-of-values exps env)
   (if (no-operands? exps)
@@ -93,8 +86,6 @@
         ((string? exp) true)
         (else false)))
 
-(define (variable? exp) (symbol? exp))
-
 (define (quoted? exp)
   (tagged-list? exp 'quote))
 
@@ -105,12 +96,15 @@
       (eq? (car exp) tag)
       false))
 
+(define (variable? exp) (symbol? exp))
+
 (define (assignment? exp)
   (tagged-list? exp 'set!))
 
 (define (assignment-variable exp) (cadr exp))
 
 (define (assignment-value exp) (caddr exp))
+
 
 (define (definition? exp)
   (tagged-list? exp 'define))
@@ -134,6 +128,7 @@
 (define (make-lambda parameters body)
   (cons 'lambda (cons parameters body)))
 
+
 (define (if? exp) (tagged-list? exp 'if))
 
 (define (if-predicate exp) (cadr exp))
@@ -147,6 +142,7 @@
 
 (define (make-if predicate consequent alternative)
   (list 'if predicate consequent alternative))
+
 
 (define (begin? exp) (tagged-list? exp 'begin))
 
@@ -163,6 +159,7 @@
 
 (define (make-begin seq) (cons 'begin seq))
 
+
 (define (application? exp) (pair? exp))
 (define (operator exp) (car exp))
 (define (operands exp) (cdr exp))
@@ -170,6 +167,7 @@
 (define (no-operands? ops) (null? ops))
 (define (first-operand ops) (car ops))
 (define (rest-operands ops) (cdr ops))
+
 
 (define (cond? exp) (tagged-list? exp 'cond))
 
@@ -214,9 +212,11 @@
 (define (compound-procedure? p)
   (tagged-list? p 'procedure))
 
+
 (define (procedure-parameters p) (cadr p))
 (define (procedure-body p) (caddr p))
 (define (procedure-environment p) (cadddr p))
+
 
 (define (enclosing-environment env) (cdr env))
 
@@ -286,9 +286,9 @@
 
 (define (setup-environment)
   (let ((initial-env
-          (extend-environment (primitive-procedure-names)
-                              (primitive-procedure-objects)
-                              the-empty-environment)))
+         (extend-environment (primitive-procedure-names)
+                             (primitive-procedure-objects)
+                             the-empty-environment)))
     (define-variable! 'true true initial-env)
     (define-variable! 'false false initial-env)
     initial-env))
@@ -305,13 +305,7 @@
         (list 'cdr cdr)
         (list 'cons cons)
         (list 'null? null?)
-        (list 'display display)
-        (list '+ +)
-        (list '- -)
-        (list '* *)
-        (list '/ /)
-        (list '= =)
-        ;; more primitives
+;;      more primitives
         ))
 
 (define (primitive-procedure-names)
@@ -326,7 +320,9 @@
 
 (define (apply-primitive-procedure proc args)
   (apply-in-underlying-scheme
-    (primitive-implementation proc) args))
+   (primitive-implementation proc) args))
+
+
 
 (define input-prompt ";;; M-Eval input:")
 (define output-prompt ";;; M-Eval value:")
