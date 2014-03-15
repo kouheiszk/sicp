@@ -24,8 +24,6 @@
         (else
           (error "Unknown expression type -- EVAL" exp))))
 
-;; (let ((x 100)) (+ x 1))
-;; '('let '( '('(x 100)) '(+ x 1) ))
 (define (let? exp) (tagged-list? exp 'let))
 (define (let-assignment exp) (cadr exp))
 (define (let-body exp) (cddr exp))
@@ -41,8 +39,8 @@
             (let-exp (cdr assignment)))))
   
 (define (let->combination exp)
-  (transform-let (let-assignment exp) (let-body exp)))
-(define (transform-let assignment body)
+  (transform-let-lambda (let-assignment exp) (let-body exp)))
+(define (transform-let-lambda assignment body)
   (cons (make-lambda (let-var assignment) body)
         (let-exp assignment)))
 
