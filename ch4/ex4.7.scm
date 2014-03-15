@@ -1,7 +1,8 @@
-;;; ex4.6
+;;; ex4.7
 
 (load "../global.scm")
 (load "./ch4-mceval.scm")
+(load "./ex4.6.scm")
 
 (define (eval exp env)
   (cond ((self-evaluating? exp) exp)
@@ -18,36 +19,31 @@
          (eval-sequence (begin-actions exp) env))
         ((cond? exp) (eval (cond->if exp) env))
         ((let? exp) (eval (let->combination exp) env))
+        ((let*? exp) (eval (let*->nested-lets exp) env))
         ((application? exp)
          (apply (eval (operator exp) env)
                 (list-of-values (operands exp) env)))
         (else
           (error "Unknown expression type -- EVAL" exp))))
 
-(define (let? exp) (tagged-list? exp 'let))
-(define (let-assignment exp) (cadr exp))
-(define (let-body exp) (cddr exp))
-(define (let-var assignment)
-  (if (null? assignment)
-      '()
-      (cons (car (car assignment))
-            (let-var (cdr assignment)))))
-(define (let-exp assignment)
-  (if (null? assignment)
-      '()
-      (cons (cadr (car assignment))
-            (let-exp (cdr assignment)))))
-  
-(define (let->combination exp)
-  (transform-let-lambda (let-assignment exp) (let-body exp)))
-(define (transform-let-lambda assignment body)
-  (cons (make-lambda (let-var assignment) body)
-        (let-exp assignment)))
+(define (let*? exp) (tagged-list? exp 'let*))
+(define (let*-assignment exp) (cadr exp))
+(define (let*-body exp) (cddr exp))
 
+(define (let*->nested-lets exp)
+  (transform-let* (let*-assignment exp) (let*-body exp)))
+(define (transform-let* assignment body)
+  (if (null? (cdr assignment))
+      (cons 'let (cons assignment body))
+      (list 'let (list (car assignment))
+            (transform-let* (cdr assignment) body))))
 
-; (define the-global-environment (setup-environment))
-; (driver-loop)
-; ;> ;;; M-Eval input:
-; (let ((x 100)) (+ x 1))
-; ;> 101
-; 
+(define the-global-environment (setup-environment))
+(driver-loop)
+;> ;;; M-Eval input:
+(let* ((x 3)
+       (y (+ x 2))
+       (z (+ x y 5)))
+  (* x z))
+;> 39
+
