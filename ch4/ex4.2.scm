@@ -1,4 +1,4 @@
-;;; ex4.6
+;;; ex4.2
 
 (load "../global.scm")
 (load "./ch4-mceval.scm")
