@@ -306,6 +306,7 @@
         (list 'cons cons)
         (list 'null? null?)
         (list 'display display)
+        (list 'set! set!)
         (list '+ +)
         (list '- -)
         (list '* *)
