@@ -26,7 +26,7 @@
         (fib-iter (+ a b) a (- count 1))))
   (fib-iter 1 0 n))
 ;> ok
-(fib 100)
+(fib 150)
 ;> 354224848179261915075
 q
 

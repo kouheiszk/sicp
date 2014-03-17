@@ -66,13 +66,10 @@
         exp
         (list (append (list 'let lets) (append sets bodys))))))
 
-; (scan-out-defines '(let ((a 1))
-;                      (define (f x)
-;                        (define b (+ a x))
-;                        (define a 5)
-;                        (+ a b))
-;                      (f 10)))
-
+;(scan-out-defines '((define b (+ a x))
+;                    (define a 5)
+;                    (+ a b))))
+;; これに対して動くようにする
 
 ;; c
 
