@@ -117,8 +117,8 @@
 
 (define (definition-variable exp)
   (if (symbol? (cadr exp))
-      (cadr exp)
-      (caadr exp)))
+      (cadr exp) ; (define x 2) の場合
+      (caadr exp))) ; (define (f x) (+ x 2)) の場合
 
 (define (definition-value exp)
   (if (symbol? (cadr exp))
