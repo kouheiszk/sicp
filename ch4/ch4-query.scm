@@ -16,6 +16,19 @@
 ;;;SECTION 4.4.4.1
 ;;;The Driver Loop and Instantiation
 
+
+;; 質問システムの駆動ループは入力の式を繰り返し読む。
+;; 式がデータベースに追加すべき規則や表明であれば情報を追加する。
+;; そうでなければ式は質問と考える。
+;; 
+;; 入力が質問であった場合、駆動ループはこの質問を
+;; 単一の空フレームからなる初期のフレームストリームとともにqevalに渡す。
+;; 評価の結果はデータベースで見つけた変数の値によって質問を満足させることで生成したフレームのストリームである。
+;; 
+;; これらのフレームを用いて、フレームのストリームから渡される値で
+;; 変数を具体化した元々の質問のコピーからなる新しいストリームを形成する
+
+
 (define input-prompt ";;; Query input:")
 (define output-prompt ";;; Query results:")
 
@@ -43,11 +56,11 @@
 
 (define (instantiate exp frame unbound-var-handler)
   (define (copy exp)
-    (cond ((var? exp)
-           (let ((binding (binding-in-frame exp frame)))
+    (cond ((var? exp) ;; 変数だった場合
+           (let ((binding (binding-in-frame exp frame))) ;; 変数が具体化できるかどうか
              (if binding
                  (copy (binding-value binding))
-                 (unbound-var-handler exp frame))))
+                 (unbound-var-handler exp frame)))) ;; 変数が具体化できなかった
           ((pair? exp)
            (cons (copy (car exp)) (copy (cdr exp))))
           (else exp)))
@@ -58,10 +71,10 @@
 ;;;The Evaluator
 
 (define (qeval query frame-stream)
-  (let ((qproc (get (type query) 'qeval)))
+  (let ((qproc (get (type query) 'qeval))) ;; (put 'hoge 'qeval hogeproc) されているかどうか
     (if qproc
         (qproc (contents query) frame-stream)
-        (simple-query query frame-stream))))
+        (simple-query query frame-stream)))) ;; 単純質問は simple-query で処理
 
 ;;;Simple queries
 
@@ -69,8 +82,8 @@
   (stream-flatmap
    (lambda (frame)
      (stream-append-delayed
-      (find-assertions query-pattern frame)
-      (delay (apply-rules query-pattern frame))))
+      (find-assertions query-pattern frame) ;; 拡張フレームのストリームを作る
+      (delay (apply-rules query-pattern frame)))) ;; 可能な規則をすべて作用させて拡張されたフレームのもう一つのストリームを作る
    frame-stream))
 
 ;;;Compound queries
@@ -78,8 +91,8 @@
 (define (conjoin conjuncts frame-stream)
   (if (empty-conjunction? conjuncts)
       frame-stream
-      (conjoin (rest-conjuncts conjuncts)
-               (qeval (first-conjunct conjuncts)
+      (conjoin (rest-conjuncts conjuncts) ;; 残りの質問
+               (qeval (first-conjunct conjuncts) ;; 1つ目の質問
                       frame-stream))))
 
 ;;(put 'and 'qeval conjoin)
@@ -100,9 +113,9 @@
 (define (negate operands frame-stream)
   (stream-flatmap
    (lambda (frame)
-     (if (stream-null? (qeval (negated-query operands)
+     (if (stream-null? (qeval (negated-query operands) ;; frameを質問で拡張しようと試みる
                               (singleton-stream frame)))
-         (singleton-stream frame)
+         (singleton-stream frame) ;; 拡張できなかったものを返す
          the-empty-stream))
    frame-stream))
 
@@ -116,7 +129,7 @@
            call
            frame
            (lambda (v f)
-             (error "Unknown pat var -- LISP-VALUE" v))))
+             (error "Unknown pat var -- LISP-VALUE" v)))) ;; unbound-var-handler
          (singleton-stream frame)
          the-empty-stream))
    frame-stream))
@@ -137,7 +150,8 @@
 (define (find-assertions pattern frame)
   (stream-flatmap (lambda (datum)
                     (check-an-assertion datum pattern frame))
-                  (fetch-assertions pattern frame)))
+                  (fetch-assertions pattern frame))) ;; パターンとフレームに対してマッチをチェックすべき
+                                                     ;; データベースの表明のすべてのストリームを得る
 
 (define (check-an-assertion assertion query-pat query-frame)
   (let ((match-result
@@ -149,7 +163,8 @@
 (define (pattern-match pat dat frame)
   (cond ((eq? frame 'failed) 'failed)
         ((equal? pat dat) frame)
-        ((var? pat) (extend-if-consistent pat dat frame))
+        ((var? pat) (extend-if-consistent pat dat frame)) ;; 既にフレームにある束縛と矛盾しない限り 
+                                                          ;; 現在のフレームを変数のデータへの束縛で拡張する
         ((and (pair? pat) (pair? dat))
          (pattern-match (cdr pat)
                         (cdr dat)
@@ -161,8 +176,33 @@
 (define (extend-if-consistent var dat frame)
   (let ((binding (binding-in-frame var frame)))
     (if binding
-        (pattern-match (binding-value binding) dat frame)
-        (extend var dat frame))))
+        (pattern-match (binding-value binding) dat frame) ;; テスト
+        (extend var dat frame)))) ;; フレームに変数の束縛がなければ
+                                  ;; 変数とデータとの束縛を追加する
+
+
+;; 格納されている値がユニフィケーションで格納されたなら
+;; パターン変数を持っている可能性がある。
+;; 格納されたパターンが新しいデータに再帰的にマッチすると、
+;; このパターンの変数の束縛を追加したりチェックしたりする。
+;; 例えば?xが(f ?y)に束縛され, ?yは未束縛というフレームがあるとし、
+;; ?xを(f b)に束縛してこのフレームを拡張したいとする。
+;; 
+;; 1. ?xを探しそれが(f ?y)に束縛されているのを知る
+;; 2. (f ?y) はこのフレームで提案されている新しい値(f b)とマッチさせることになる
+;; 3. このマッチはフレームを?yのbへの束縛を追加することで拡張する
+;;
+;; * ?xは(f ?y)に束縛したままである
+;; * 格納されている束縛を修正することはない
+;; * またある変数に一つを超える束縛を格納することもない
+
+
+;;; ドット末尾を持つパターン
+
+;; (computer . ?type) のパターンに対する
+;; (computer programer suzuki) のマッチは
+;; ?type を リスト (programer suzuki) にマッチする
+
 
 ;;;SECTION 4.4.4.4
 ;;;Rules and Unification
@@ -183,11 +223,13 @@
           (qeval (rule-body clean-rule)
                  (singleton-stream unify-result))))))
 
+;; 規則の中の変数をすべて一意的な名前に置き換える
+;; -> 異る規則(仕事と住所とか)の作用で変数が互いに混乱するのを避けるため
 (define (rename-variables-in rule)
   (let ((rule-application-id (new-rule-application-id)))
     (define (tree-walk exp)
       (cond ((var? exp)
-             (make-new-variable exp rule-application-id))
+             (make-new-variable exp rule-application-id)) ;; 例えば?xだったら?x-7にする
             ((pair? exp)
              (cons (tree-walk (car exp))
                    (tree-walk (cdr exp))))
@@ -198,7 +240,7 @@
   (cond ((eq? frame 'failed) 'failed)
         ((equal? p1 p2) frame)
         ((var? p1) (extend-if-possible p1 p2 frame))
-        ((var? p2) (extend-if-possible p2 p1 frame)) ; {\em ; ***}
+        ((var? p2) (extend-if-possible p2 p1 frame)) ; *** この行を除き構造はpattern-matchと同じ
         ((and (pair? p1) (pair? p2))
          (unify-match (cdr p1)
                       (cdr p2)
@@ -211,17 +253,20 @@
   (let ((binding (binding-in-frame var frame)))
     (cond (binding
            (unify-match
-            (binding-value binding) val frame))
-          ((var? val)                     ; {\em ; ***}
-           (let ((binding (binding-in-frame val frame)))
+            (binding-value binding) val frame)) ;; テスト
+          ((var? val)                     ; *** varが未束縛で、valが変数
+           (let ((binding (binding-in-frame val frame))) 
              (if binding
                  (unify-match
                   var (binding-value binding) frame)
                  (extend var val frame))))
-          ((depends-on? val var frame)    ; {\em ; ***}
+          ((depends-on? val var frame)    ; *** valが?hogeを含む式だった場合
            'failed)
-          (else (extend var val frame)))))
+          (else (extend var val frame))))) ;; 未束縛なら束縛する
 
+
+;; パターン変数の値として提案された式valが
+;; その変数varに依存しているかどうかテストする
 (define (depends-on? exp var frame)
   (define (tree-walk e)
     (cond ((var? e)
@@ -237,20 +282,21 @@
           (else false)))
   (tree-walk exp))
 
+
 ;;;SECTION 4.4.4.5
 ;;;Maintaining the Data Base
 
 (define THE-ASSERTIONS the-empty-stream)
 
 (define (fetch-assertions pattern frame)
-  (if (use-index? pattern)
-      (get-indexed-assertions pattern)
-      (get-all-assertions)))
+  (if (use-index? pattern) ;; patternのcarがsymbolかどうか
+      (get-indexed-assertions pattern) 
+      (get-all-assertions))) ;; 格納されているすべての表明を返す
 
 (define (get-all-assertions) THE-ASSERTIONS)
 
 (define (get-indexed-assertions pattern)
-  (get-stream (index-key-of pattern) 'assertion-stream))
+  (get-stream (index-key-of pattern) 'assertion-stream)) ;; 'hoge のassertinのストリームを取得
 
 (define (get-stream key1 key2)
   (let ((s (get key1 key2)))
@@ -267,9 +313,11 @@
 
 (define (get-indexed-rules pattern)
   (stream-append
-   (get-stream (index-key-of pattern) 'rule-stream)
-   (get-stream '? 'rule-stream)))
+   (get-stream (index-key-of pattern) 'rule-stream) ;; 定数の記号で始まる規則
+   (get-stream '? 'rule-stream))) ;; 変数で始る規則
 
+
+;; 表明と規則をデータベースに追加する
 (define (add-rule-or-assertion! assertion)
   (if (rule? assertion)
       (add-rule! assertion)
@@ -288,11 +336,14 @@
     (set! THE-RULES (cons-stream rule old-rules))
     'ok))
 
+
+;; 表明や規則を実際に格納するにはそれが添字づけ出来るかチェックする
+;; 添字づけできたのであれば適切なストリームに格納する
 (define (store-assertion-in-index assertion)
   (if (indexable? assertion)
       (let ((key (index-key-of assertion)))
         (let ((current-assertion-stream
-               (get-stream key 'assertion-stream)))
+               (get-stream key 'assertion-stream))) ;; 現在のassertion-streamを取得
           (put key
                'assertion-stream
                (cons-stream assertion
@@ -309,16 +360,21 @@
                  (cons-stream rule
                               current-rule-stream)))))))
 
+;; 変数かsymbolであればtrue
 (define (indexable? pat)
   (or (constant-symbol? (car pat))
       (var? (car pat))))
 
+;; (変数の場合の)?
+;; 先頭の定数のsymbol
 (define (index-key-of pat)
   (let ((key (car pat)))
     (if (var? key) '? key)))
 
+;; carがsymbolかどうか
 (define (use-index? pat)
   (constant-symbol? (car pat)))
+
 
 ;;;SECTION 4.4.4.6
 ;;;Stream operations
@@ -455,7 +511,7 @@
 
 (define (extend variable value frame)
   (cons (make-binding variable value) frame))
-
+
 
 ;;;;From Section 4.1
 
@@ -539,7 +595,7 @@
             ((eq? m 'insert-proc!) insert!)
             (else (error "Unknown operation -- TABLE" m))))
     dispatch))
-
+
 ;;;; From instructor's manual
 
 (define get '())
