@@ -29,13 +29,23 @@
 ;; 変数を具体化した元々の質問のコピーからなる新しいストリームを形成する
 
 
+;;;SECTION 4.4.4.8
+;;;Frames and bindings
+
+;; システムのextendを使わないようにここに記述
+;; フレームを拡張する
+(define (extend variable value frame)
+  (cons (make-binding variable value) frame))
+
+
+
 (define input-prompt ";;; Query input:")
 (define output-prompt ";;; Query results:")
 
 (define (query-driver-loop)
   (prompt-for-input input-prompt)
   (let ((q (query-syntax-process (read))))
-    (cond ((assertion-to-be-added? q)
+    (cond ((assertion-to-be-added? q) ;; (car q) が 'assert! 
            (add-rule-or-assertion! (add-assertion-body q))
            (newline)
            (display "Assertion added to data base.")
@@ -163,8 +173,7 @@
 (define (pattern-match pat dat frame)
   (cond ((eq? frame 'failed) 'failed)
         ((equal? pat dat) frame)
-        ((var? pat) (extend-if-consistent pat dat frame)) ;; 既にフレームにある束縛と矛盾しない限り 
-                                                          ;; 現在のフレームを変数のデータへの束縛で拡張する
+        ((var? pat) (extend-if-consistent pat dat frame))
         ((and (pair? pat) (pair? dat))
          (pattern-match (cdr pat)
                         (cdr dat)
@@ -173,12 +182,13 @@
                                        frame)))
         (else 'failed)))
 
+;; 既にフレームにある束縛と矛盾しない限り 
+;; 現在のフレームを変数のデータへの束縛で拡張する
 (define (extend-if-consistent var dat frame)
   (let ((binding (binding-in-frame var frame)))
     (if binding
-        (pattern-match (binding-value binding) dat frame) ;; テスト
-        (extend var dat frame)))) ;; フレームに変数の束縛がなければ
-                                  ;; 変数とデータとの束縛を追加する
+        (pattern-match (binding-value binding) dat frame)
+        (extend var dat frame))))
 
 
 ;; 格納されている値がユニフィケーションで格納されたなら
@@ -379,6 +389,7 @@
 ;;;SECTION 4.4.4.6
 ;;;Stream operations
 
+;; ストリームに要素を追加する
 (define (stream-append-delayed s1 delayed-s2)
   (if (stream-null? s1)
       (force delayed-s2)
@@ -386,6 +397,8 @@
        (stream-car s1)
        (stream-append-delayed (stream-cdr s1) delayed-s2))))
 
+
+;; ストリームを組み合わせる
 (define (interleave-delayed s1 delayed-s2)
   (if (stream-null? s1)
       (force delayed-s2)
@@ -394,6 +407,8 @@
        (interleave-delayed (force delayed-s2)
                            (delay (stream-cdr s1))))))
 
+;; 手続きをフレームのストリームにマップし
+;; 結果のフレームのストリームを組み合せる
 (define (stream-flatmap proc s)
   (flatten-stream (stream-map proc s)))
 
@@ -404,7 +419,7 @@
        (stream-car stream)
        (delay (flatten-stream (stream-cdr stream))))))
 
-
+;; 単一要素からなるストリームを生成する
 (define (singleton-stream x)
   (cons-stream x the-empty-stream))
 
@@ -428,30 +443,36 @@
 (define (add-assertion-body exp)
   (car (contents exp)))
 
+;; For and
 (define (empty-conjunction? exps) (null? exps))
 (define (first-conjunct exps) (car exps))
 (define (rest-conjuncts exps) (cdr exps))
 
+;; For or
 (define (empty-disjunction? exps) (null? exps))
 (define (first-disjunct exps) (car exps))
 (define (rest-disjuncts exps) (cdr exps))
 
+;; For not
 (define (negated-query exps) (car exps))
 
 (define (predicate exps) (car exps))
 (define (args exps) (cdr exps))
 
-
+;; Rule
+;; (rule conclusion rule-body)
 (define (rule? statement)
   (tagged-list? statement 'rule))
 
-(define (conclusion rule) (cadr rule))
+(define (conclusion rule) (cadr rule)) 
 
 (define (rule-body rule)
   (if (null? (cddr rule))
       '(always-true)
       (caddr rule)))
 
+;; ?symbol を (? symbol) に変換する
+;; (job ?x ?y) -> (job (?x) (? y))
 (define (query-syntax-process exp)
   (map-over-symbols expand-question-mark exp))
 
@@ -463,18 +484,20 @@
         (else exp)))
 
 (define (expand-question-mark symbol)
-  (let ((chars (symbol->string symbol)))
-    (if (string=? (substring chars 0 1) "?")
+  (let ((chars (symbol->string symbol))) ;; symbolをstringに変換
+    (if (string=? (substring chars 0 1) "?") ;; 先頭が?だったら...
         (list '?
               (string->symbol
                (substring chars 1 (string-length chars))))
         symbol)))
 
+;; 変数は記号?で始まるリスト
 (define (var? exp)
   (tagged-list? exp '?))
 
 (define (constant-symbol? exp) (symbol? exp))
 
+;; ルールごとに変数に添字をつけるためのやつ
 (define rule-counter 0)
 
 (define (new-rule-application-id)
@@ -496,6 +519,7 @@
 
 ;;;SECTION 4.4.4.8
 ;;;Frames and bindings
+
 (define (make-binding variable value)
   (cons variable value))
 
@@ -505,12 +529,8 @@
 (define (binding-value binding)
   (cdr binding))
 
-
 (define (binding-in-frame variable frame)
   (assoc variable frame))
-
-(define (extend variable value frame)
-  (cons (make-binding variable value) frame))
 
 
 ;;;;From Section 4.1
