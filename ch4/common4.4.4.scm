@@ -12,8 +12,11 @@
 (define (stream-null? stream) (null? stream))
 
 (define (list->stream exp)
-  (let ((first (car exp)))
-    (if (null? first)
-        the-empty-stream
-        (cons-stream first (list->stream (cdr exp))))))
+  (cond ((null? exp) the-empty-stream)
+        (else 
+          (let ((first (car exp)))
+            (if (null? first)
+                the-empty-stream
+                (cons-stream first (list->stream (cdr exp)))))
+          )))
 
