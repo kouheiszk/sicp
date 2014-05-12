@@ -20,3 +20,7 @@
                 (cons-stream first (list->stream (cdr exp)))))
           )))
 
+;; For env
+
+(define the-empty-environment '())
+(define user-initial-environment the-empty-environment)

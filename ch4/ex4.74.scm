@@ -6,7 +6,6 @@
 (initialize-data-base microshaft-data-base)
 (initialize-data-base empty-data-base)
 (query-driver-loop)
-#q
 
 ;; Alyssa P. Hackerはnegate, lisp-valueとfind-assertionsでのstream-flatmapに,
 ;; より単純な版を使うことを提案した. 
@@ -23,73 +22,153 @@
               (stream-filter <??> stream)))
 
 
-;;;
-(job ?x (computer programmer))
-(not (job ?x (computer programmer)))
-(define q1 (query-syntax-process '(job ?x (computer programmer))))
-(define q2 (query-syntax-process '(not (job ?x (computer programmer)))))
-q1
-q2
-(qeval q1 (singleton-stream '()))
-(qeval q2 (singleton-stream '()))
-(get (type q2) 'qeval)
-(contents q2)
-(define q2proc (get (type q2) 'qeval))
-(q2proc (contents q2) (singleton-stream '()))
-(negated-query (contents q2))
-
+;; negateを基に考えてみる
 (define (negate operands frame-stream)
   (stream-flatmap
    (lambda (frame)
-     (if (stream-null? (qeval (negated-query operands) ;; frameを質問で拡張しようと試みる
+     (if (stream-null? (qeval (negated-query operands)
                               (singleton-stream frame)))
-         (singleton-stream frame) ;; 拡張できなかったものを返す
+         (singleton-stream frame)
          the-empty-stream))
    frame-stream))
 
 
-
-
-
-
-
-
-(computer wizard)
-
-
+(query-driver-loop)
 ;;; Query input:
+(and (job ?x (computer . ?type))
+     (not (job ?x (computer programmer))))
+;> 
 ;;; Query results:
-;> (job (Fect Cy D) (computer programmer))
+;> (and (job (Reasoner Louis) (computer programmer trainee)) 
+;>      (not (job (Reasoner Louis) (computer programmer))))
+;> (and (job (Tweakit Lem E) (computer technician)) 
+;>      (not (job (Tweakit Lem E) (computer programmer))))
+;> (and (job (Bitdiddle Ben) (computer wizard)) 
+;>      (not (job (Bitdiddle Ben) (computer programmer))))
+;> 
+;;; Query input:
+(job ?x (computer . ?type))
+;> 
+;;; Query results:
+;> (job (Reasoner Louis) (computer programmer trainee))
+;> (job (Tweakit Lem E) (computer technician))
+;> (job (Fect Cy D) (computer programmer)) ; empty-streamになる
 ;> (job (Hacker Alyssa P) (computer programmer))
+;> (job (Bitdiddle Ben) (computer wizard)) ; empty-streamになる
 ;>
 ;;; Query input:
+#q
 
+;; simple-flattenに渡るストリームは、
+;; 必要な要素と空の要素が入り混じった形式になっている
+;; simple-flattenでは、空のストリームを取り除いてあげれば良い
 
-(define (simple-query query-pattern frame-stream)
-  (stream-flatmap
+(define (simple-flatten stream)
+  (stream-map <??>
+              (stream-filter <??> stream)))
+
+;; ↓
+
+(define (simple-flatten stream)
+  (stream-map <??>
+              (stream-filter (lambda (s) 
+                               (not (stream-null? s))) 
+                             stream)))
+
+;; ↓
+
+(define (simple-flatten stream)
+  (stream-map (lambda (s) 
+                (stream-car s))
+              (stream-filter (lambda (s) 
+                               (not (stream-null? s))) 
+                             stream)))
+
+;; negateで使ってみます
+
+(define (simple-stream-flatmap proc s)
+  (simple-flatten (stream-map proc s)))
+
+(define (simple-flatten stream)
+  (stream-map (lambda (s) 
+                (stream-car s))
+              (stream-filter (lambda (s) 
+                               (not (stream-null? s))) 
+                             stream)))
+
+(define (negate operands frame-stream)
+  (simple-stream-flatmap
    (lambda (frame)
-     (stream-append-delayed
-      (find-assertions query-pattern frame) ;; 拡張フレームのストリームを作る
-      (delay (apply-rules query-pattern frame)))) ;; 可能な規則をすべて作用させて拡張されたフレームのもう一つのストリームを作る
+     (if (stream-null? (qeval (negated-query operands)
+                              (singleton-stream frame)))
+         (singleton-stream frame)
+         the-empty-stream))
    frame-stream))
 
-(define (stream-flatmap proc s)
-  (flatten-stream (stream-map proc s)))
 
-(define (flatten-stream stream)
-  (if (stream-null? stream)
-      the-empty-stream
-      (interleave-delayed
-       (stream-car stream)
-       (delay (flatten-stream (stream-cdr stream))))))
+(query-driver-loop)
+;;; query input:
+(and (job ?x (computer . ?type))
+     (not (job ?x (computer programmer))))
+;>
+;;; query results:
+;> (and (job (reasoner louis) (computer programmer trainee)) 
+;>      (not (job (reasoner louis) (computer programmer))))
+;> (and (job (tweakit lem e) (computer technician)) 
+;>      (not (job (tweakit lem e) (computer programmer))))
+;> (and (job (bitdiddle ben) (computer wizard)) 
+;>      (not (job (bitdiddle ben) (computer programmer))))
+;> 
 
-(define (stream-filter pred stream)
-  (cond ((stream-null? stream) the-empty-stream)
-        ((pred (stream-car stream))
-         (cons-stream (stream-car stream)
-                      (stream-filter pred
-                                     (stream-cdr stream))))
-        (else (stream-filter pred (stream-cdr stream)))))
+
+
+;; list-valueとfind-assertionsの場合
+
+(define (simple-stream-flatmap proc s)
+  (simple-flatten (stream-map proc s)))
+
+(define (simple-flatten stream)
+  (stream-map (lambda (s) 
+                (stream-car s))
+              (stream-filter (lambda (s) 
+                               (not (stream-null? s))) 
+                             stream)))
+
+(define (lisp-value call frame-stream)
+  (simple-stream-flatmap
+   (lambda (frame)
+     (if (execute
+          (instantiate
+           call
+           frame
+           (lambda (v f)
+             (error "Unknown pat var -- LISP-VALUE" v))))
+         (singleton-stream frame)
+         the-empty-stream))
+   frame-stream))
+
+(define (find-assertions pattern frame)
+  (simple-stream-flatmap (lambda (datum)
+                    (check-an-assertion datum pattern frame))
+                  (fetch-assertions pattern frame)))
+
+
+(query-driver-loop)
+;;; Query input:
+(and (salary ?person ?amount)
+     (lisp-value > ?amount 30000))
+;> 
+;;; Query results:
+;> (and (salary (Scrooge Eben) 75000) (lisp-value > 75000 30000))
+;> (and (salary (Warbucks Oliver) 150000) (lisp-value > 150000 30000))
+;> (and (salary (Fect Cy D) 35000) (lisp-value > 35000 30000))
+;> (and (salary (Hacker Alyssa P) 40000) (lisp-value > 40000 30000))
+;> (and (salary (Bitdiddle Ben) 60000) (lisp-value > 60000 30000))
+;> 
+;;; Query input:
+#q
 
 
 ;; b. このように変更すると, 質問システムの振舞いは変るか. 
+
+;; 変わらない
