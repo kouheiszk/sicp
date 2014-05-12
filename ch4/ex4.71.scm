@@ -1,4 +1,4 @@
-;;; ex4.70
+;;; ex4.71
 
 (load "../global.scm")
 (load "./common4.4.4.scm")
