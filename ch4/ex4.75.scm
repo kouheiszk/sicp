@@ -62,7 +62,8 @@
 ;> (unique (job (Bitdiddle Ben) (computer wizard)))
 ;> 
 ;;; Query input:
-(and (supervisor ?x ?s) (unique (supervisor ?anyone ?s)))
+(and (supervisor ?x ?s) 
+     (unique (supervisor ?anyone ?x)))
 ;> 
 ;;; Query results:
 ;> (and (supervisor (Cratchet Robert) (Scrooge Eben)) (unique (supervisor (Cratchet Robert) (Scrooge Eben))))
@@ -77,9 +78,9 @@
 ;; (supervisor (Hacker Alyssa P) (Bitdiddle Ben))
 ;; (supervisor (Fect Cy D) (Bitdiddle Ben))
 ;; (supervisor (Tweakit Lem E) (Bitdiddle Ben))
-;; (supervisor (Reasoner Louis) (Hacker Alyssa P))
+;; (supervisor (Reasoner Louis) (Hacker Alyssa P)) ;*
 ;; (supervisor (Bitdiddle Ben) (Warbucks Oliver))
 ;; (supervisor (Scrooge Eben) (Warbucks Oliver))
-;; (supervisor (Cratchet Robert) (Scrooge Eben))
+;; (supervisor (Cratchet Robert) (Scrooge Eben)) ;* 
 ;; (supervisor (Aull DeWitt) (Warbucks Oliver))
 

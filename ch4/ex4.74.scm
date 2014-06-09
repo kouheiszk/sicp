@@ -78,8 +78,7 @@
 ;; ↓
 
 (define (simple-flatten stream)
-  (stream-map (lambda (s) 
-                (stream-car s))
+  (stream-map stream-car
               (stream-filter (lambda (s) 
                                (not (stream-null? s))) 
                              stream)))
@@ -119,7 +118,7 @@
 ;> (and (job (bitdiddle ben) (computer wizard)) 
 ;>      (not (job (bitdiddle ben) (computer programmer))))
 ;> 
-
+#q
 
 
 ;; list-valueとfind-assertionsの場合
@@ -172,3 +171,5 @@
 ;; b. このように変更すると, 質問システムの振舞いは変るか. 
 
 ;; 変わらない
+
+

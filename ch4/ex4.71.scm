@@ -61,6 +61,8 @@
 ;> Assertion added to data base.
 ;>
 ;;; Query input:
+(married Minnie ?who)
+;;; Query input:
 (married Mickey ?who)
 ;;; Query results:
 ;>
