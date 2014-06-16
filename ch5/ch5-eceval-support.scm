@@ -154,7 +154,7 @@
                      (procedure-body object)
                      '<procedure-env>))
       (display object)))
-
+
 ;;; Simulation of new machine operations needed by
 ;;;  eceval machine (not used by compiled code)
 
