@@ -74,7 +74,6 @@ compiled-branch59
   (assign val (op compiled-procedure-entry) (reg proc)) 
   (goto (reg val)) 
 primitive-branch58
-;; (+ counter 1)を計算
   (assign val (op apply-primitive-procedure) (reg proc) (reg argl)) 
 after-call60
 ;; 結果をarglにリストで保存
@@ -105,7 +104,7 @@ after-call57
 ;; iterを復帰する
   (restore proc) 
   (restore continue) 
-  (test (op primitive-procedure?) (reg proc)) 
+  (test (op primitive-procedure?) (reg proc)) ; procはiter
   (branch (label primitive-branch61)) 
 compiled-branch62
 ;; 合成手続きは末尾再帰的に呼び出される

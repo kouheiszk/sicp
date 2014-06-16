@@ -105,12 +105,13 @@ ev-lambda
 ;;   (save proc)
 
 ;; ただenvを退避するかしないかが違う
+;; unevも退避しなくてもいいかも
 
 ev-application
   (save continue)
   (assign unev (op operands) (ref exp))
   (assign exp (op operator) (reg exp))
-  (test (op symbol?) (reg exp)) ;; 記号？
+  (test (op symbol?) (reg exp)) ; 記号？
   (branch (label ev-appl-symbol-operator))
   (branch (label ev-appl-operator))
 ev-appl-symbol-operator
@@ -129,6 +130,7 @@ ev-appl-did-operator
   (restore unev)
   (restore env)
   (goto (label ev-appl-did-operator-common))
+
 ev-appl-did-operator-common
   (assign argl (op empty-arglist))
   (assign proc (reg val))
@@ -270,5 +272,10 @@ ev-definition-1
 ;;; この考えをどう思うか. 
 
 ;; 翻訳系の利点を評価器に組み込むことは可能だと思う。
-;; ただ、解釈系の利点である「実行中の原始プログラムを実行時に調べたり修正したり出来る」
+;; ただ、解釈系の利点である
+;; 「実行中の原始プログラムを実行時に調べたり修正したり出来る」
 ;; という部分が複雑になってしまうのでは？
+;;
+;; javaの構造とか
+;; java -> jvm machine lang? -> machine lang
+;; just in time compiler
