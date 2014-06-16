@@ -73,4 +73,5 @@
 ;>   (assign argl (op cons) (reg val) (reg argl))))
 
 ;; reverseが無い分、効率的ではある
+;; ただしｍ引数リストを構成するコードの効率には影響しない
 
